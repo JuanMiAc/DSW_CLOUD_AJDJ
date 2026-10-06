@@ -8,7 +8,7 @@
 
 ###############   MYSQL   ###################
 
--- 1. Tabla Principal: carrito
+-- 2. Tabla Principal: carrito (1 por usuario, obligatorio)
 CREATE TABLE carrito (
     id_carrito INT AUTO_INCREMENT PRIMARY KEY,
     id_usuario INT NOT NULL UNIQUE, 
@@ -16,19 +16,26 @@ CREATE TABLE carrito (
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
 );
 
--- 2. Tabla de Detalle: carrito_recursos (El contenido del arraylist de PHP)
+-- 3. Tabla de Detalle: carrito_recursos (El contenido del ArrayList)
 CREATE TABLE carrito_recursos (
     id_linea INT AUTO_INCREMENT PRIMARY KEY,
     id_carrito INT NOT NULL,
     id_recurso_catalogo INT NOT NULL,   
     id_especifico_recurso INT NOT NULL, 
-    -- Nombre único para evitar colisiones con las tablas maestras de recursos
     coste_carrito_recurso DECIMAL(8,2) NOT NULL, 
     FOREIGN KEY (id_carrito) REFERENCES carrito(id_carrito) ON DELETE CASCADE,
     FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
 );
 
+-- 1. Pasas los productos del carrito anónimo (id_carrito 5) al carrito real (id_carrito 1)
+-- (Asumiendo que tienes una tabla intermedia llamada 'carrito_productos')
+UPDATE carrito_productos 
+SET id_carrito = 1 
+WHERE id_carrito = 5;
 
+-- 2. Borras al usuario anónimo que se creó al entrar (esto borrará su carrito vacío por el ON DELETE CASCADE)
+DELETE FROM usuarios 
+WHERE id_usuario = 10;
 
 ###############    PHP   ############### 
 <?php
