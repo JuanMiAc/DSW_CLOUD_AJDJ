@@ -1,0 +1,152 @@
+
+##### DEFINICIÓN TABLA  #####
+
+| Campo |
+
+| id_pedido |
+| id_usuario |
+| fecha_pedido |
+| estado |
+
+
+###############   MYSQL   ###################
+
+CREATE TABLE pedidos (
+    id_pedido INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL, 
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_pedido DECIMAL(8,2) NOT NULL,
+    estado VARCHAR(50) DEFAULT 'pendiente',
+    -- RESTRICT evita borrar un usuario si tiene un historial de compras real
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE RESTRICT 
+);
+
+CREATE TABLE pedido_recursos (
+    id_linea_pedido INT AUTO_INCREMENT PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    id_recurso_catalogo INT NOT NULL,
+    id_especifico_recurso INT NOT NULL,
+    coste_pedido_recurso DECIMAL(8,2) NOT NULL, -- El precio histórico al que se compró
+    FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+INSERT INTO pedido_recursos (id_pedido, id_recurso_catalogo, id_especifico_recurso, coste_pedido_recurso)
+SELECT ID_DE_TU_NUEVO_PEDIDO, id_recurso_catalogo, id_especifico_recurso, coste_carrito_recurso
+FROM carrito_recursos
+WHERE id_carrito = ID_DEL_CARRITO_ACTUAL;
+
+
+
+###############    PHP   ############### 
+
+<?php
+// Configuración de la conexión a la base de datos (PDO)
+$host = 'localhost';
+$db   = 'tu_base_de_datos';
+$user = 'tu_usuario';
+$pass = 'tu_contraseña';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+];
+
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (\PDOException $e) {
+    throw new \PDOException($e->getMessage(), (int)$e->getCode());
+}
+
+/**
+ * Procesa la compra: Transforma el carrito actual en un pedido cerrado.
+ */
+function procesarPedido($pdo, $idUsuarioActual) {
+    try {
+        // Al realizar múltiples operaciones seguidas, iniciamos una TRANSACCIÓN.
+        // Si algo falla en medio del proceso, la base de datos vuelve atrás (Rollback) y no se pierden datos.
+        $pdo->beginTransaction();
+
+        // 1. Obtener el carrito y el precio total actual de este usuario
+        $stmtCarrito = $pdo->prepare("SELECT id_carrito, precio_total FROM carrito WHERE id_usuario = ?");
+        $stmtCarrito->execute([$idUsuarioActual]);
+        $carrito = $stmtCarrito->fetch();
+
+        if (!$carrito) {
+            throw new Exception("Error: No se encontró ningún carrito para este usuario.");
+        }
+
+        $idCarrito = $carrito['id_carrito'];
+        $totalPedido = $carrito['precio_total'];
+
+        // Validación: No permitir pedidos con carrito vacío
+        if ($totalPedido <= 0) {
+            throw new Exception("Error: El carrito está vacío. No puedes generar un pedido.");
+        }
+
+        // 2. Crear el registro principal del pedido
+        $sqlPedido = "INSERT INTO pedidos (id_usuario, total_pedido, estado) VALUES (?, ?, 'pendiente')";
+        $stmtInsertPedido = $pdo->prepare($sqlPedido);
+        $stmtInsertPedido->execute([$idUsuarioActual, $totalPedido]);
+        
+        // Obtenemos el ID del pedido que se acaba de crear
+        $idNuevoPedido = $pdo->lastInsertId();
+
+        // 3. Clonar los recursos: Pasar del carrito (ArrayList) al detalle del pedido
+        // Hacemos un volcado masivo directo en la base de datos
+        $sqlClonar = "INSERT INTO pedido_recursos (id_pedido, id_recurso_catalogo, id_especifico_recurso, coste_pedido_recurso)
+                      SELECT ?, id_recurso_catalogo, id_especifico_recurso, coste_carrito_recurso
+                      FROM carrito_recursos
+                      WHERE id_carrito = ?";
+        
+        $stmtClonar = $pdo->prepare($sqlClonar);
+        $stmtClonar->execute([$idNuevoPedido, $idCarrito]);
+
+        // 4. Vaciar el carrito del usuario para que pueda volver a comprar en el futuro
+        // Primero eliminamos los recursos asociados a ese carrito
+        $stmtVaciarRecursos = $pdo->prepare("DELETE FROM carrito_recursos WHERE id_carrito = ?");
+        $stmtVaciarRecursos = $stmtVaciarRecursos->execute([$idCarrito]);
+
+        // Luego restablecemos el precio total del carrito principal a 0.00
+        $stmtResetTotal = $pdo->prepare("UPDATE carrito SET precio_total = 0.00 WHERE id_carrito = ?");
+        $stmtResetTotal->execute([$idCarrito]);
+
+        // Si todo ha salido bien, confirmamos los cambios de forma definitiva
+        $pdo->commit();
+
+        return [
+            "status" => "success",
+            "message" => "¡Pedido realizado con éxito!",
+            "id_pedido" => $idNuevoPedido
+        ];
+
+    } catch (Exception $e) {
+        // Si ocurre CUALQUIER error en los pasos 1, 2, 3 o 4, cancelamos todo para no dejar datos corruptos
+        $pdo->rollBack();
+        return [
+            "status" => "error",
+            "message" => "Error al procesar el pedido: " . $e->getMessage()
+        ];
+    }
+}
+
+// ==========================================
+// EJEMPLO DE USO PRÁCTICO EN TU CÓDIGO
+// ==========================================
+/*
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $idUsuario = $_POST['id_usuario_actual']; // El ID del usuario que le dio a "Comprar"
+    
+    $resultado = procesarPedido($pdo, $idUsuario);
+    
+    if ($resultado['status'] === 'success') {
+        echo $resultado['message'] . " Tu número de orden es: #" . $resultado['id_pedido'];
+    } else {
+        echo $resultado['message'];
+    }
+}
+*/
+?>

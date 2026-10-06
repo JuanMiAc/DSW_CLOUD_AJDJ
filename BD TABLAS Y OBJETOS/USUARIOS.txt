@@ -1,0 +1,150 @@
+
+##### DEFINICIÓN TABLA  #####
+
+| Campo |
+
+| id_usuario |
+| nombre |
+| apellidos |
+| telefono |
+| email |
+| password |
+| tipo_usuario |
+
+
+###############   MYSQL   ###################
+
+
+CREATE TABLE usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NULL,        -- NULL porque el anónimo no tiene nombre al entrar
+    apellidos VARCHAR(100) NULL,
+    telefono VARCHAR(20) NULL,
+    email VARCHAR(100) NULL UNIQUE, -- NULL porque el anónimo no tiene email
+    password VARCHAR(255) NULL,     -- NULL porque el anónimo no tiene contraseña
+    tipo_usuario VARCHAR(30) DEFAULT 'anonimo' -- Por defecto entra como 'anonimo'
+);
+
+
+UPDATE usuarios 
+SET nombre = 'Juan', 
+    apellidos = 'Pérez', 
+    email = 'juan@email.com', 
+    password = 'CONTRASEÑA_ENCRIPTADA', 
+    tipo_usuario = 'cliente' 
+WHERE id_usuario = ID_ANONIMO_ACTUAL;
+
+###############    PHP   ############### 
+
+<?php
+// 1. Configuración de la conexión a la base de datos (PDO)
+$host = 'localhost';
+$db   = 'tu_base_de_datos';
+$user = 'tu_usuario';
+$pass = 'tu_contraseña';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+];
+
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (\PDOException $e) {
+    throw new \PDOException($e->getMessage(), (int)$e->getCode());
+}
+
+/**
+ * Función 1: Crea un usuario anónimo inmediatamente al entrar a la web
+ * Devuelve el ID generado para que lo uses en el frontend.
+ */
+function crearUsuarioAnonimo($pdo) {
+    try {
+        // Al tener valores por defecto y permitir NULLs, solo insertamos una fila vacía
+        $stmt = $pdo->prepare("INSERT INTO usuarios () VALUES ()");
+        $stmt->execute();
+        
+        $idAnonimo = $pdo->lastInsertId();
+        
+        // REGLA DE NEGOCIO: Crear inmediatamente su carrito asociado
+        $stmtCarrito = $pdo->prepare("INSERT INTO carrito (id_usuario) VALUES (?)");
+        $stmtCarrito->execute([$idAnonimo]);
+        
+        return $idAnonimo;
+    } catch (Exception $e) {
+        return "Error al crear usuario anónimo: " . $e->getMessage();
+    }
+}
+
+/**
+ * Función 2: Transforma al usuario anónimo en un cliente registrado (Tu UPDATE)
+ */
+function registrarUsuarioAnonimo($pdo, $idAnonimoActual, $nombre, $apellidos, $telefono, $email, $passwordPlano) {
+    try {
+        // 1. Validar primero si el email ya existe en la base de datos
+        $stmtCheck = $pdo->prepare("SELECT id_usuario FROM usuarios WHERE email = ?");
+        $stmtCheck->execute([$email]);
+        if ($stmtCheck->fetch()) {
+            return "Error: El correo electrónico ya está registrado.";
+        }
+
+        // 2. Encriptar la contraseña de forma segura con BCRYPT
+        $passwordEncriptada = password_hash($passwordPlano, PASSWORD_BCRYPT);
+
+        // 3. Ejecutar el UPDATE para transformar el registro
+        $sql = "UPDATE usuarios 
+                SET nombre = :nombre, 
+                    apellidos = :apellidos, 
+                    telefono = :telefono, 
+                    email = :email, 
+                    password = :password, 
+                    tipo_usuario = 'cliente' 
+                WHERE id_usuario = :id_anonimo";
+
+        $stmt = $pdo->prepare($sql);
+        $resultado = $stmt->execute([
+            ':nombre'     => $nombre,
+            ':apellidos'  => $apellidos,
+            ':telefono'   => $telefono,
+            ':email'      => $email,
+            ':password'   => $passwordEncriptada,
+            ':id_anonimo' => $idAnonimoActual
+        ]);
+
+        if ($stmt->rowCount() > 0) {
+            return "Usuario registrado con éxito. Su carrito se ha conservado.";
+        } else {
+            return "Error: No se encontró al usuario anónimo actual.";
+        }
+
+    } catch (Exception $e) {
+        return "Error en el registro: " . $e->getMessage();
+    }
+}
+
+// ==========================================
+// EJEMPLOS DE USO PRÁCTICO EN TU CÓDIGO
+// ==========================================
+
+// CASO 1: El usuario acaba de abrir la página
+// $idNuevoVisitante = crearUsuarioAnonimo($pdo);
+// echo "Bienvenido! Tu ID temporal es: " . $idNuevoVisitante;
+
+// CASO 2: El usuario rellena tu formulario de registro y lo envía
+/*
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $idAnonimoActual = $_POST['id_usuario_actual']; // Lo debes mandar desde el formulario oculto
+    $nombre = $_POST['nombre'];
+    $apellidos = $_POST['apellidos'];
+    $telefono = $_POST['telefono'];
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+
+    $mensaje = registrarUsuarioAnonimo($pdo, $idAnonimoActual, $nombre, $apellidos, $telefono, $email, $password);
+    echo $mensaje;
+}
+*/
+?>
