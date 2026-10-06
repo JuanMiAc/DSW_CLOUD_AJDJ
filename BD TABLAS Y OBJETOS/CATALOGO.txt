@@ -1,0 +1,70 @@
+##### DEFINICIÓN TABLA  #####
+
+| id_recurso_catalogo  | nombre_recurso_catalogo |
+
+| 1            | Servidor |
+| 2            | Base de datos |
+| 3            | Almacenamiento |
+| 4            | Backup |
+| 5            | Red |
+| 6            | Firewall |
+| 7            | Monitorización |
+| 8            | Servicio IA |
+| 9            | Soporte |
+
+
+###############    MYSQL  ############### 
+
+-- Creación de la tabla --
+
+CREATE TABLE catalogo (
+    id_recurso_catalogo INT AUTO_INCREMENT PRIMARY KEY,
+    nombre_recurso_catalogo VARCHAR(100) NOT NULL
+);
+
+-- Inserción de los recursos iniciales --
+
+INSERT INTO catalogo (id_recurso_catalogo, nombre_recurso_catalogo) VALUES
+(1, 'Servidor'),
+(2, 'Base de datos'),
+(3, 'Almacenamiento'),
+(4, 'Backup'),
+(5, 'Red'),
+(6, 'Firewall'),
+(7, 'Monitorización'),
+(8, 'Servicio IA'),
+(9, 'Soporte');
+
+
+###############    PHP   ############### 
+
+<?php
+
+// Definición de la clase con solo el constructor
+
+class Catalogo
+{
+    public int $id_recurso_catalogo;
+    public string $nombre_recurso_catalogo;
+
+    public function __construct(int $id_recurso_catalogo, string $nombre_recurso_catalogo)
+    {
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->nombre_recurso_catalogo = $nombre_recurso_catalogo;
+    }
+}
+
+// Creación del array con los objetos del catálogo
+
+$catalogo = [
+    new Catalogo(1, "Servidor"),
+    new Catalogo(2, "Base de datos"),
+    new Catalogo(3, "Almacenamiento"),
+    new Catalogo(4, "Backup"),
+    new Catalogo(5, "Red"),
+    new Catalogo(6, "Firewall"),
+    new Catalogo(7, "Monitorización"),
+    new Catalogo(8, "Servicio IA"),
+    new Catalogo(9, "Soporte")
+];
+

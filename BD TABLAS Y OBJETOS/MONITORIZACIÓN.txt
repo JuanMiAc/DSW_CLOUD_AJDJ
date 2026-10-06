@@ -1,0 +1,87 @@
+
+
+##### DEFINICIÓN TABLA  #####
+
+| Tipo       | Valores                                                               |Precio
+
+| **Normal** | Monitorización básica   / CPU, RAM y almacenamiento                   / **10 €** |
+| **Plus**   | Monitorización avanzada / CPU, RAM, almacenamiento y red              / **25 €** |
+| **Premium**| Monitorización completa / Todos los recursos + alertas en tiempo real / **50 €** |
+
+
+###############    MYSQL   ############### 
+
+CREATE TABLE monitorizacion (
+    id_monitorizacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 7, -- Conexión al Catálogo (Monitorización = 7)
+    
+    -- Configuración basada estrictamente en tu imagen
+    mon_tipo ENUM(
+        'Normal: Monitorización básica / CPU, RAM y almacenamiento',
+        'Plus: Monitorización avanzada / CPU, RAM, almacenamiento y red',
+        'Premium: Monitorización completa / Todos los recursos + alertas en tiempo real'
+    ) NOT NULL,
+    
+    -- Variable de precio única para este recurso específico
+    coste_monitorizacion DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción de los tres niveles de monitorización con sus precios fijos
+INSERT INTO monitorizacion (mon_tipo, coste_monitorizacion) VALUES
+('Normal: Monitorización básica / CPU, RAM y almacenamiento', 10.00),
+('Plus: Monitorización avanzada / CPU, RAM, almacenamiento y red', 25.00),
+('Premium: Monitorización completa / Todos los recursos + alertas en tiempo real', 50.00);
+
+
+
+
+###############    PHP   ############### 
+
+<?php
+
+class Monitorizacion 
+{
+    public int $id_monitorizacion;
+    public int $id_recurso_catalogo;
+    public string $mon_tipo;
+    public float $coste_monitorizacion;
+
+    // Constructor limpio
+    public function __construct(
+        int $id_monitorizacion, 
+        int $id_recurso_catalogo, 
+        string $mon_tipo, 
+        float $coste_monitorizacion
+    ) {
+        $this->id_monitorizacion = $id_monitorizacion;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->mon_tipo = $mon_tipo;
+        $this->coste_monitorizacion = $coste_monitorizacion;
+    }
+
+    // Método estático para extraer el registro de la BD y retornar el objeto montado
+    public static function buscarYCrear(PDO $pdo, string $mon_tipo): ?Monitorizacion
+    {
+        $sql = "SELECT id_monitorizacion, id_recurso_catalogo, mon_tipo, coste_monitorizacion 
+                FROM monitorizacion 
+                WHERE mon_tipo = :mon_tipo";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':mon_tipo' => $mon_tipo]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        if ($registro) {
+            return new self(
+                (int)$registro['id_monitorizacion'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['mon_tipo'],
+                (float)$registro['coste_monitorizacion']
+            );
+        }
+
+        return null;
+    }
+}

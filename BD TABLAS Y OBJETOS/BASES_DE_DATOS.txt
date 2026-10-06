@@ -1,0 +1,84 @@
+
+
+##### DEFINICIÓN TABLA  #####
+
+| Tipo      | Valores |
+
+| **Motor** | MySQL, MariaDB, PostgreSQL, MongoDB |
+
+
+
+###############    MYSQL   ############### 
+
+CREATE TABLE base_datos (
+    id_basedatos INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 2, -- Conexión al Catálogo (Base de datos = 2)
+    
+    -- El único campo de configuración solicitado
+    motor ENUM('MySQL', 'MariaDB', 'PostgreSQL', 'MongoDB') NOT NULL,
+    
+    -- CORRECCIÓN: Nombre único para el precio de este recurso específico
+    coste_bd DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción exacta de los 4 motores con sus precios fijos actualizados
+INSERT INTO base_datos (motor, coste_bd) VALUES
+('MySQL', 15.00),
+('MariaDB', 15.00),
+('PostgreSQL', 20.00),
+('MongoDB', 25.00);
+
+
+###############    PHP   ############### 
+
+<?php
+
+class BaseDatos 
+{
+    public int $id_basedatos;
+    public int $id_recurso_catalogo;
+    public string $motor;
+    public float $coste_bd; // CORREGIDO: Nombre de variable único
+
+    // Constructor limpio, sin lógica adicional
+    public function __construct(
+        int $id_basedatos, 
+        int $id_recurso_catalogo, 
+        string $motor, 
+        float $coste_bd // CORREGIDO
+    ) {
+        $this->id_basedatos = $id_basedatos;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->motor = $motor;
+        $this->coste_bd = $coste_bd; // CORREGIDO
+    }
+
+    // Método para buscar en la BD por el motor y devolver el objeto con su precio
+    public static function buscarYCrear(PDO $pdo, string $motor): ?BaseDatos
+    {
+        // CORREGIDO: Seleccionamos 'coste_bd' en la consulta SQL
+        $sql = "SELECT id_basedatos, id_recurso_catalogo, motor, coste_bd 
+                FROM base_datos 
+                WHERE motor = :motor";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':motor' => $motor]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        // Si el motor existe en la BD, creamos y devolvemos el objeto con su precio
+        if ($registro) {
+            return new self(
+                (int)$registro['id_basedatos'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['motor'],
+                (float)$registro['coste_bd'] // CORREGIDO
+            );
+        }
+
+        // Si no se encuentra, devuelve null
+        return null;
+    }
+}

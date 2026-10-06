@@ -1,0 +1,105 @@
+
+##### DEFINICIÓN TABLA  #####
+
+| Tipo          | Valores |
+
+| **Tipo**      | SSD, HDD |
+| **Capacidad** | 100 GB, 500 GB, 1 TB |
+| **Coste**     | SSD: 10 € · HDD: 50 € |
+
+
+| Tipo | Capacidad | Coste |
+|
+| **SSD** | 100 GB | 10 € |
+| **SSD** | 500 GB | 50 € |
+| **SSD** | 1 TB   | 100 € |
+| **HDD** | 100 GB | 10 € |
+| **HDD** | 500 GB | 50 € |
+| **HDD** | 1 TB   | 100 € |
+
+TIPO DE MEMORIA de SSD 10 € / HDD 50 € el precio depende del Tipo,
+ mientras que los 10/50/100 € indican que depende de la Capacidad
+
+
+ ###############   MYSQL   ###################
+
+ CREATE TABLE almacenamiento (
+    id_almacenamiento INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 3, -- Conexión al Catálogo (Almacenamiento = 3)
+    
+    -- Los dos campos de configuración según tu imagen
+    tipo_disco ENUM('SSD', 'HDD') NOT NULL,
+    capacidad ENUM('100 GB', '500 GB', '1 TB') NOT NULL,
+    
+    -- CORRECCIÓN: Variable de precio única para este recurso
+    coste_almacenamiento DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción exacta de las 6 combinaciones de tu tabla con sus costes
+INSERT INTO almacenamiento (tipo_disco, capacidad, coste_almacenamiento) VALUES
+('SSD', '100 GB', 10.00),
+('SSD', '500 GB', 50.00),
+('SSD', '1 TB', 100.00),
+('HDD', '100 GB', 10.00),
+('HDD', '500 GB', 50.00),
+('HDD', '1 TB', 100.00);
+
+
+
+###############    PHP   ############### 
+
+<?php
+
+class Almacenamiento 
+{
+    public int $id_almacenamiento;
+    public int $id_recurso_catalogo;
+    public string $tipo_disco;
+    public string $capacidad;
+    public float $coste_almacenamiento;
+
+    // Constructor limpio, sin lógica adicional
+    public function __construct(
+        int $id_almacenamiento, 
+        int $id_recurso_catalogo, 
+        string $tipo_disco, 
+        string $capacidad, 
+        float $coste_almacenamiento
+    ) {
+        $this->id_almacenamiento = $id_almacenamiento;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->tipo_disco = $tipo_disco;
+        $this->capacidad = $capacidad;
+        $this->coste_almacenamiento = $coste_almacenamiento;
+    }
+
+    // Método estático para buscar en la BD por tipo y capacidad
+    public static function buscarYCrear(PDO $pdo, string $tipo_disco, string $capacidad): ?Almacenamiento
+    {
+        $sql = "SELECT id_almacenamiento, id_recurso_catalogo, tipo_disco, capacidad, coste_almacenamiento 
+                FROM almacenamiento 
+                WHERE tipo_disco = :tipo_disco AND capacidad = :capacidad";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':tipo_disco' => $tipo_disco,
+            ':capacidad' => $capacidad
+        ]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        if ($registro) {
+            return new self(
+                (int)$registro['id_almacenamiento'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['tipo_disco'],
+                $registro['capacidad'],
+                (float)$registro['coste_almacenamiento']
+            );
+        }
+
+        return null;
+    }
+}

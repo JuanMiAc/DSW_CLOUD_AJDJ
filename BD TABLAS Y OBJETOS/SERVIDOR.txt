@@ -1,0 +1,112 @@
+
+///DESCRIPCION///
+
+SERVIDOR
+| Campo                     | Tipo / Valores |
+
+| **`id_servidor`**         | `INT AUTO_INCREMENT` — **PK** |
+| **`id_recurso_catalogo`** | `INT DEFAULT 1` — **FK** |
+| **`serv_tipo`**           | `ENUM` — `estandar`, `medio`, `avanzado`, `alto rendimiento` |
+| **`localizacion`**        | `ENUM` — `Europa`, `América`, `Asia` |
+| **`coste_mensual`**       | `DECIMAL(8,2)` |
+
+
+
+###############   MYSQL   ###################
+
+CREATE TABLE servidor (
+    id_servidor INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 1, -- Unión al Catálogo Maestro
+    
+    -- Los únicos dos campos de configuración que querías
+    serv_tipo ENUM(
+        'estandar: 2-4 CPU, 4-8 GB RAM, almacenamiento SSD', 
+        'medio: 4-8 CPU, 8-16 GB RAM, almacenamiento SSD', 
+        'avanzado: 8+ CPU, 16+ GB RAM, almacenamiento SSD NVMe'
+    ) NOT NULL,
+    localizacion ENUM('Europa', 'Asia', 'América') NOT NULL,
+    
+    -- CORRECCIÓN: Nombre único para el precio de este recurso específico
+    coste_servidor DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción de Servidores en EUROPA (Precios Base) con la nueva variable
+INSERT INTO servidor (serv_tipo, localizacion, coste_servidor) VALUES
+('estandar: 2-4 CPU, 4-8 GB RAM, almacenamiento SSD', 'Europa', 15.00),
+('medio: 4-8 CPU, 8-16 GB RAM, almacenamiento SSD', 'Europa', 25.00),
+('avanzado: 8+ CPU, 16+ GB RAM, almacenamiento SSD NVMe', 'Europa', 30.00);
+
+-- Inserción de Servidores en AMÉRICA (5€ más baratos)
+INSERT INTO servidor (serv_tipo, localizacion, coste_servidor) VALUES
+('estandar: 2-4 CPU, 4-8 GB RAM, almacenamiento SSD', 'América', 10.00),
+('medio: 4-8 CPU, 8-16 GB RAM, almacenamiento SSD', 'América', 20.00),
+('avanzado: 8+ CPU, 16+ GB RAM, almacenamiento SSD NVMe', 'América', 25.00);
+
+-- Inserción de Servidores en ASIA (5€ más caros)
+INSERT INTO servidor (serv_tipo, localizacion, coste_servidor) VALUES
+('estandar: 2-4 CPU, 4-8 GB RAM, almacenamiento SSD', 'Asia', 20.00),
+('medio: 4-8 CPU, 8-16 GB RAM, almacenamiento SSD', 'Asia', 30.00),
+('avanzado: 8+ CPU, 16+ GB RAM, almacenamiento SSD NVMe', 'Asia', 35.00);
+
+
+
+
+###############    PHP   ############### 
+<?php
+
+class Servidor 
+{
+    public int $id_servidor;
+    public int $id_recurso_catalogo;
+    public string $serv_tipo;
+    public string $localizacion;
+    public float $coste_servidor; // CORREGIDO: Nombre de variable único
+
+    // Tu constructor limpio
+    public function __construct(
+        int $id_servidor, 
+        int $id_recurso_catalogo, 
+        string $serv_tipo, 
+        string $localizacion, 
+        float $coste_servidor // CORREGIDO
+    ) {
+        $this->id_servidor = $id_servidor;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->serv_tipo = $serv_tipo;
+        $this->localizacion = $localizacion;
+        $this->coste_servidor = $coste_servidor; // CORREGIDO
+    }
+
+    // El método que conecta con la BD y te devuelve el objeto construido
+    public static function buscarYCrear(PDO $pdo, string $tipo, string $localizacion): ?Servidor
+    {
+        // CORREGIDO: La consulta SQL ahora selecciona 'coste_servidor'
+        $sql = "SELECT id_servidor, id_recurso_catalogo, serv_tipo, localizacion, coste_servidor 
+                FROM servidor 
+                WHERE serv_tipo = :tipo AND localizacion = :localizacion";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':tipo' => $tipo,
+            ':localizacion' => $localizacion
+        ]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        // Si la base de datos encontró el servidor, creamos y devolvemos el objeto
+        if ($registro) {
+            return new self(
+                (int)$registro['id_servidor'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['serv_tipo'],
+                $registro['localizacion'],
+                (float)$registro['coste_servidor'] // CORREGIDO
+            );
+        }
+
+        // Si no existe esa combinación en la BD, devuelve null
+        return null;
+    }
+}

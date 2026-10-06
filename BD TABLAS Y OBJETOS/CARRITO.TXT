@@ -1,0 +1,140 @@
+
+///////DESCRIPCION/////
+
++++SOLO PUEDE HABER UN CARRITO POR USUARIO.
++++SI NO TERMINA LA COMPRA O SALE SE VACIA.
++++SI LA TERMINA SE CREA UN PEDIDO Y SE VACIA EL CARRITO.
+ -----<<<<< ¡¡¡¡¡OJO!!!! HAY DOS TABLAS 
+
+###############   MYSQL   ###################
+
+-- 1. Tabla Principal: carrito
+CREATE TABLE carrito (
+    id_carrito INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL UNIQUE, 
+    precio_total DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
+);
+
+-- 2. Tabla de Detalle: carrito_recursos (El contenido del arraylist de PHP)
+CREATE TABLE carrito_recursos (
+    id_linea INT AUTO_INCREMENT PRIMARY KEY,
+    id_carrito INT NOT NULL,
+    id_recurso_catalogo INT NOT NULL,   
+    id_especifico_recurso INT NOT NULL, 
+    -- Nombre único para evitar colisiones con las tablas maestras de recursos
+    coste_carrito_recurso DECIMAL(8,2) NOT NULL, 
+    FOREIGN KEY (id_carrito) REFERENCES carrito(id_carrito) ON DELETE CASCADE,
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+
+
+###############    PHP   ############### 
+<?php
+
+class Carrito
+{
+    public int $id_carrito;
+    public int $id_usuario;
+    public array $arraylist_recursos; 
+    public float $precio_total;
+
+    public function __construct(int $id_carrito, int $id_usuario)
+    {
+        $this->id_carrito = $id_carrito;
+        $this->id_usuario = $id_usuario;
+        $this->arraylist_recursos = []; 
+        $this->precio_total = 0.00;
+    }
+
+    // Añade cualquier recurso de los 9 tipos e incrementa el precio_total en memoria
+    public function añadirRecurso($recurso): void
+    {
+        $this->arraylist_recursos[] = $recurso;
+        
+        // Evaluamos de qué clase es el objeto para sumar su variable de precio única
+        if ($recurso instanceof Servidor)       { $this->precio_total += $recurso->coste_servidor; }
+        if ($recurso instanceof BaseDatos)      { $this->precio_total += $recurso->coste_bd; }
+        if ($recurso instanceof Almacenamiento) { $this->precio_total += $recurso->coste_almacenamiento; }
+        if ($recurso instanceof BackupRecurso)  { $this->precio_total += $recurso->coste_backup; }
+        if ($recurso instanceof Red)            { $this->precio_total += $recurso->coste_red; }
+        if ($recurso instanceof Firewall)       { $this->precio_total += $recurso->coste_firewall; }
+        if ($recurso instanceof Monitorizacion) { $this->precio_total += $recurso->coste_monitorizacion; }
+        if ($recurso instanceof ServicioIa)     { $this->precio_total += $recurso->coste_ia; }
+        if ($recurso instanceof Soporte)        { $this->precio_total += $recurso->coste_soporte; }
+    }
+
+    // Elimina el recurso del arraylist restando su precio del total
+    public function eliminarRecurso(string $tipoRecurso, int $idEspecifico): void
+    {
+        foreach ($this->arraylist_recursos as $indice => $recurso) {
+            
+            // 1. Servidor
+            if ($tipoRecurso === 'servidor' && $recurso instanceof Servidor && $recurso->id_servidor === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_servidor;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+            
+            // 2. Base de Datos
+            if ($tipoRecurso === 'base_datos' && $recurso instanceof BaseDatos && $recurso->id_basedatos === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_bd;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 3. Almacenamiento
+            if ($tipoRecurso === 'almacenamiento' && $recurso instanceof Almacenamiento && $recurso->id_almacenamiento === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_almacenamiento;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 4. Backup
+            if ($tipoRecurso === 'backup' && $recurso instanceof BackupRecurso && $recurso->id_backup === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_backup;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 5. Red
+            if ($tipoRecurso === 'red' && $recurso instanceof Red && $recurso->id_red === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_red;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 6. Firewall
+            if ($tipoRecurso === 'firewall' && $recurso instanceof Firewall && $recurso->id_firewall === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_firewall;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 7. Monitorización
+            if ($tipoRecurso === 'monitorizacion' && $recurso instanceof Monitorizacion && $recurso->id_monitorizacion === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_monitorizacion;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 8. Servicio IA
+            if ($tipoRecurso === 'servicio_ia' && $recurso instanceof ServicioIa && $recurso->id_ia === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_ia;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+
+            // 9. Soporte
+            if ($tipoRecurso === 'soporte' && $recurso instanceof Soporte && $recurso->id_soporte === $idEspecifico) {
+                $this->precio_total -= $recurso->coste_soporte;
+                unset($this->arraylist_recursos[$indice]);
+                break;
+            }
+        }
+        
+        // Reindexamos el array para evitar huecos en los índices numéricos tras el unsetting
+        $this->arraylist_recursos = array_values($this->arraylist_recursos);
+    }
+}

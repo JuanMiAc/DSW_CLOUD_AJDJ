@@ -1,0 +1,86 @@
+
+##### DEFINICIÓN TABLA  #####
+
+| Tipo        | Valores                                      | Precio
+
+| **Normal**  | Soporte básico / Atención en horario laboral / **10 € al mes** |
+| **Plus**    | Soporte ampliado / Atención prioritaria      / **25 € al mes** |
+| **Premium** | Soporte 24/7 / Atención prioritaria          / **50 € al mes** |
+
+
+###############   MYSQL  ############### 
+
+CREATE TABLE soporte (
+    id_soporte INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 9, -- Conexión al Catálogo (Soporte = 9)
+    
+    -- Configuración basada estrictamente en tu imagen
+    sop_tipo ENUM(
+        'Normal: Soporte básico / Atención en horario laboral / 10 € al mes',
+        'Plus: Soporte ampliado / Atención prioritaria / 25 € al mes',
+        'Premium: Soporte 24/7 / Atención prioritaria / 50 € al mes'
+    ) NOT NULL,
+    
+    -- Variable de precio única para este recurso específico
+    coste_soporte DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción exacta de los tres niveles de soporte con sus costes fijos asignados
+INSERT INTO soporte (sop_tipo, coste_soporte) VALUES
+('Normal: Soporte básico / Atención en horario laboral / 10 € al mes', 10.00),
+('Plus: Soporte ampliado / Atención prioritaria / 25 € al mes', 25.00),
+('Premium: Soporte 24/7 / Atención prioritaria / 50 € al mes', 50.00);
+
+
+
+
+###############    PHP   ############### 
+
+<?php
+
+class Soporte 
+{
+    public int $id_soporte;
+    public int $id_recurso_catalogo;
+    public string $sop_tipo;
+    public float $coste_soporte;
+
+    // Constructor limpio, sin lógica adicional
+    public function __construct(
+        int $id_soporte, 
+        int $id_recurso_catalogo, 
+        string $sop_tipo, 
+        float $coste_soporte
+    ) {
+        $this->id_soporte = $id_soporte;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->sop_tipo = $sop_tipo;
+        $this->coste_soporte = $coste_soporte;
+    }
+
+    // Método estático para extraer el registro de la BD y retornar el objeto ya montado
+    public static function buscarYCrear(PDO $pdo, string $sop_tipo): ?Soporte
+    {
+        $sql = "SELECT id_soporte, id_recurso_catalogo, sop_tipo, coste_soporte 
+                FROM soporte 
+                WHERE sop_tipo = :sop_tipo";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':sop_tipo' => $sop_tipo]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        if ($registro) {
+            return new self(
+                (int)$registro['id_soporte'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['sop_tipo'],
+                (float)$registro['coste_soporte']
+            );
+        }
+
+        return null;
+    }
+}

@@ -1,0 +1,86 @@
+
+##### DEFINICIÓN TABLA  #####
+
+| Tipo       | Valores                                      | Precio
+
+| **Normal** | Frecuencia: Semanal / Retención: 30 días     | 5
+| **Plus**   | Frecuencia: Diaria / Retención: 90 días      | 15
+| **Premium**| Frecuencia: Cada 12 horas / Retención: 1 año | 30
+
+
+
+###############   MYSQL  ############### 
+
+CREATE TABLE backup_recurso (
+    id_backup INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 4, -- Conexión al Catálogo (Backup = 4)
+    
+    -- El campo de configuración basado estrictamente en tu imagen
+    back_tipo ENUM(
+        'Normal: Frecuencia Semanal / Retención: 30 días',
+        'Plus: Frecuencia Diaria / Retención: 90 días',
+        'Premium: Frecuencia: Cada 12 horas / Retención: 1 año'
+    ) NOT NULL,
+    
+    -- Variable de precio única para evitar colisiones
+    coste_backup DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción de los tres planes de backup con sus costes fijados
+INSERT INTO backup_recurso (back_tipo, coste_backup) VALUES
+('Normal: Frecuencia Semanal / Retención: 30 días', 5.00),
+('Plus: Frecuencia Diaria / Retención: 90 días', 15.00),
+('Premium: Frecuencia: Cada 12 horas / Retención: 1 año', 30.00);
+
+
+
+###############    PHP   ############### 
+
+<?php
+
+class BackupRecurso 
+{
+    public int $id_backup;
+    public int $id_recurso_catalogo;
+    public string $back_tipo;
+    public float $coste_backup;
+
+    // Constructor limpio, sin lógica añadida
+    public function __construct(
+        int $id_backup, 
+        int $id_recurso_catalogo, 
+        string $back_tipo, 
+        float $coste_backup
+    ) {
+        $this->id_backup = $id_backup;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->back_tipo = $back_tipo;
+        $this->coste_backup = $coste_backup;
+    }
+
+    // Método estático para extraer el registro de la BD y retornar el objeto
+    public static function buscarYCrear(PDO $pdo, string $back_tipo): ?BackupRecurso
+    {
+        $sql = "SELECT id_backup, id_recurso_catalogo, back_tipo, coste_backup 
+                FROM backup_recurso 
+                WHERE back_tipo = :back_tipo";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':back_tipo' => $back_tipo]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        if ($registro) {
+            return new self(
+                (int)$registro['id_backup'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['back_tipo'],
+                (float)$registro['coste_backup']
+            );
+        }
+
+        return null;
+    }
+}

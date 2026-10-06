@@ -1,0 +1,87 @@
+
+##### DEFINICIÓN TABLA  #####
+
+| Tipo | Valores                                                            | Precios
+
+| **Normal** | Reglas básicas de entrada y salida                           / **10 €** |
+| **Plus**   | Reglas avanzadas + protección contra tráfico no autorizado   / **25 €** |
+| **Premium**| Reglas avanzadas + protección avanzada + filtrado de tráfico / **50 €** |
+
+
+
+###############    MYSQL   ############### 
+
+CREATE TABLE firewall (
+    id_firewall INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 6, -- Conexión al Catálogo (Firewall = 6)
+    
+    -- Configuración basada estrictamente en las descripciones de tu imagen
+    firewall_tipo ENUM(
+        'Normal: Reglas básicas de entrada y salida',
+        'Plus: Reglas avanzadas + protección contra tráfico no autorizado',
+        'Premium: Reglas avanzadas + protección avanzada + filtrado de tráfico'
+    ) NOT NULL,
+    
+    -- Variable de precio única para este recurso específico
+    coste_firewall DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción de los tres niveles de protección con sus precios asignados
+INSERT INTO firewall (firewall_tipo, coste_firewall) VALUES
+('Normal: Reglas básicas de entrada y salida', 10.00),
+('Plus: Reglas avanzadas + protección contra tráfico no autorizado', 25.00),
+('Premium: Reglas avanzadas + protección avanzada + filtrado de tráfico', 50.00);
+
+
+
+
+###############    PHP   ############### 
+
+<?php
+
+class Firewall 
+{
+    public int $id_firewall;
+    public int $id_recurso_catalogo;
+    public string $firewall_tipo;
+    public float $coste_firewall;
+
+    // Constructor limpio, sin lógica adicional
+    public function __construct(
+        int $id_firewall, 
+        int $id_recurso_catalogo, 
+        string $firewall_tipo, 
+        float $coste_firewall
+    ) {
+        $this->id_firewall = $id_firewall;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->firewall_tipo = $firewall_tipo;
+        $this->coste_firewall = $coste_firewall;
+    }
+
+    // Método estático para extraer el registro de la BD y retornar el objeto ya montado
+    public static function buscarYCrear(PDO $pdo, string $firewall_tipo): ?Firewall
+    {
+        $sql = "SELECT id_firewall, id_recurso_catalogo, firewall_tipo, coste_firewall 
+                FROM firewall 
+                WHERE firewall_tipo = :firewall_tipo";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':firewall_tipo' => $firewall_tipo]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        if ($registro) {
+            return new self(
+                (int)$registro['id_firewall'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['firewall_tipo'],
+                (float)$registro['coste_firewall']
+            );
+        }
+
+        return null;
+    }
+}

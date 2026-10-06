@@ -1,0 +1,86 @@
+
+##### DEFINICIÓN TABLA  #####
+
+
+| Tipo        | Valores                                           | Precio
+
+| **Normal**  | API de IA / Consultas básicas                     / **10 €** |
+| **Plus**    | API de IA / Mayor número de consultas             / **25 €** |
+| **Premium** | API de IA / Consultas avanzadas + mayor capacidad / **50 €** |
+
+
+###############   MYSQL  ############### 
+
+CREATE TABLE servicio_ia (
+    id_ia INT AUTO_INCREMENT PRIMARY KEY,
+    id_recurso_catalogo INT NOT NULL DEFAULT 8, -- Conexión al Catálogo (Servicio IA = 8)
+    
+    -- Configuración basada estrictamente en tu imagen
+    ia_tipo ENUM(
+        'Normal: API de IA / Consultas básicas',
+        'Plus: API de IA / Mayor número de consultas',
+        'Premium: API de IA / Consultas avanzadas + mayor capacidad'
+    ) NOT NULL,
+    
+    -- Variable de precio única para este recurso específico
+    coste_ia DECIMAL(8,2) NOT NULL,
+    
+    FOREIGN KEY (id_recurso_catalogo) REFERENCES catalogo(id_recurso_catalogo)
+);
+
+-- Inserción exacta de los tres niveles de IA con sus costes fijos
+INSERT INTO servicio_ia (ia_tipo, coste_ia) VALUES
+('Normal: API de IA / Consultas básicas', 10.00),
+('Plus: API de IA / Mayor número de consultas', 25.00),
+('Premium: API de IA / Consultas avanzadas + mayor capacidad', 50.00);
+
+
+
+###############    PHP   ############### 
+
+<?php
+
+class ServicioIa 
+{
+    public int $id_ia;
+    public int $id_recurso_catalogo;
+    public string $ia_tipo;
+    public float $coste_ia;
+
+    // Constructor limpio
+    public function __construct(
+        int $id_ia, 
+        int $id_recurso_catalogo, 
+        string $ia_tipo, 
+        float $coste_ia
+    ) {
+        $this->id_ia = $id_ia;
+        $this->id_recurso_catalogo = $id_recurso_catalogo;
+        $this->ia_tipo = $ia_tipo;
+        $this->coste_ia = $coste_ia;
+    }
+
+    // Método estático para extraer el registro de la BD y retornar el objeto montado
+    public static function buscarYCrear(PDO $pdo, string $ia_tipo): ?ServicioIa
+    {
+        $sql = "SELECT id_ia, id_recurso_catalogo, ia_tipo, coste_ia 
+                FROM servicio_ia 
+                WHERE ia_tipo = :ia_tipo";
+                
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':ia_tipo' => $ia_tipo]);
+
+        $registro = $stmt->fetch(PDO::ATTR_ASSOC);
+
+        if ($registro) {
+            return new self(
+                (int)$registro['id_ia'],
+                (int)$registro['id_recurso_catalogo'],
+                $registro['ia_tipo'],
+                (float)$registro['coste_ia']
+            );
+        }
+
+        return null;
+    }
+}
