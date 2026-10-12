@@ -11,7 +11,7 @@ Actualmente, el proyecto ha finalizado su **Fase de Planificación, Arquitectura
 
 ---
 
-## 🛠️ Stack Tecnológico Utilizado
+##  Stack Tecnológico Utilizado
 *   **Backend:** Laravel 13.33.0 (PHP 8.5.4)
 *   **Base de Datos:** MariaDB 11.8.6
 *   **Gestor de Dependencias:** Composer 2.9.5 / npm 11.19.0
